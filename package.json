@@ -1,0 +1,28 @@
+{
+  "name": "stealth-proxy-portal",
+  "version": "1.0.0",
+  "description": "Modern web proxy portal with stealth features and an integrated offline HTML5 game hub",
+  "main": "server/index.js",
+  "scripts": {
+    "start": "node server/index.js",
+    "dev": "node --watch server/index.js"
+  },
+  "keywords": [
+    "proxy",
+    "express",
+    "websocket",
+    "html5-games",
+    "privacy"
+  ],
+  "license": "MIT",
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "dependencies": {
+    "cheerio": "^1.0.0",
+    "compression": "^1.7.4",
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2",
+    "ws": "^8.17.1"
+  }
+}
