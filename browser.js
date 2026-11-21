@@ -57,10 +57,15 @@ export class TabbedBrowser {
       this.el.omniboxInput.select();
     });
 
-    // Sync tab title/URL and handle in-portal new-tab requests from __proxy_hook.js
+    // Sync tab title/URL and handle in-portal link navigation & new-tab requests from __proxy_hook.js
     window.addEventListener('message', (event) => {
       const data = event.data;
       if (!data) return;
+      if (data.type === 'BEAN_PROXY_NAVIGATE' && data.url) {
+        const senderTab = this.tabs.find((t) => t.iframe && t.iframe.contentWindow === event.source) || this.getActiveTab();
+        if (senderTab) this.navigateTab(senderTab, data.url);
+        return;
+      }
       if (data.type === 'BEAN_PROXY_NEW_TAB' && data.url) {
         this.createTab(data.url, { activate: true });
         return;

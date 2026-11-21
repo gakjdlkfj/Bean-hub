@@ -158,9 +158,9 @@ export class GameHub {
         <div class="max-w-5xl mx-auto">
           <div class="flex flex-col sm:flex-row sm:items-end justify-between gap-4 mb-6">
             <div>
-              <div class="text-xs font-bold uppercase tracking-wider accent-text mb-1">Bean Proxy Arcade</div>
+              <div class="text-xs font-bold uppercase tracking-wider accent-text mb-1">Bean Proxy Arcade · ${this.games.length} Games</div>
               <h2 class="text-2xl font-extrabold text-white">Bean Game Hub</h2>
-              <p class="text-xs text-slate-400 mt-1">Offline classics + proxied web games + custom Owner uploads. Click ★ to pin favorites.</p>
+              <p class="text-xs text-slate-400 mt-1">Offline classics + 100+ proxied web games + custom Owner uploads. Click ★ to pin favorites.</p>
             </div>
             <div class="flex items-center bg-[#11151f] border border-white/10 rounded-xl px-3 py-2 w-full sm:w-64">
               <span class="text-slate-500 text-xs mr-2">🔍</span>

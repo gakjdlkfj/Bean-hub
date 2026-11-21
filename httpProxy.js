@@ -40,9 +40,27 @@ function isPrivateOrReservedHost(hostname) {
   return false;
 }
 
+function unwrapSearchUrl(href) {
+  try {
+    const u = new URL(href);
+    const host = u.hostname.toLowerCase();
+    if (host.endsWith('duckduckgo.com') && u.pathname.startsWith('/l/')) {
+      const uddg = u.searchParams.get('uddg');
+      if (uddg && /^https?:\/\//i.test(uddg)) return uddg;
+    }
+    if (host.includes('google.') && u.pathname === '/url') {
+      const q = u.searchParams.get('q') || u.searchParams.get('url');
+      if (q && /^https?:\/\//i.test(q)) return q;
+    }
+  } catch {
+    // ignore
+  }
+  return href;
+}
+
 function extractTargetUrl(req) {
   if (req.query && req.query.url) {
-    return String(req.query.url);
+    return unwrapSearchUrl(String(req.query.url));
   }
   const prefixNoSlashes = PROXY_PREFIX.replace(/^\/+|\/+$/g, '');
   let rawPath = (req.path || '').replace(/^\/+/, '');
@@ -53,19 +71,41 @@ function extractTargetUrl(req) {
   }
   if (!rawPath) return null;
 
+  let decodedUrl = null;
   if (/^https?:\/\//i.test(rawPath)) {
-    return rawPath;
-  }
-  try {
-    const token = rawPath.split('/')[0];
-    const decoded = decodeProxyUrl(token);
-    if (/^https?:\/\//i.test(decoded)) {
-      return decoded;
+    decodedUrl = rawPath;
+  } else {
+    try {
+      const token = rawPath.split('/')[0];
+      const decoded = decodeProxyUrl(token);
+      if (/^https?:\/\//i.test(decoded)) {
+        decodedUrl = decoded;
+      }
+    } catch {
+      return null;
     }
-  } catch {
-    return null;
   }
-  return null;
+  if (!decodedUrl) return null;
+
+  // Merge any GET form query parameters appended by the browser onto the decoded URL
+  const queryEntries = Object.entries(req.query || {}).filter(([k]) => k !== 'url');
+  if (queryEntries.length > 0) {
+    try {
+      const u = new URL(decodedUrl);
+      for (const [k, v] of queryEntries) {
+        if (Array.isArray(v)) {
+          v.forEach((item) => u.searchParams.append(k, String(item)));
+        } else if (v !== undefined) {
+          u.searchParams.set(k, String(v));
+        }
+      }
+      decodedUrl = u.href;
+    } catch {
+      // keep decodedUrl
+    }
+  }
+
+  return unwrapSearchUrl(decodedUrl);
 }
 
 function decompressBody(buffer, encoding) {
