@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Neon Bean Pong</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: #090b10; color: #f8fafc; font-family: system-ui, -apple-system, sans-serif;
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      min-height: 100vh; padding: 16px; user-select: none;
+    }
+    .bar { width: 100%; max-width: 640px; display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; gap: 8px; flex-wrap: wrap; }
+    .pill { background: #11151f; border: 1px solid rgba(255,255,255,0.08); padding: 6px 14px; border-radius: 10px; font-size: 13px; }
+    .pill strong { color: #10b981; margin-left: 4px; }
+    button, select { background: #171c2b; color: #e2e8f0; border: 1px solid rgba(255,255,255,0.12); padding: 6px 12px; border-radius: 8px; font-size: 12px; font-weight: 700; cursor: pointer; }
+    button:hover { border-color: #10b981; }
+    .stage { position: relative; border-radius: 16px; overflow: hidden; border: 2px solid rgba(16,185,129,0.4); box-shadow: 0 20px 50px rgba(0,0,0,0.6); }
+    canvas { display: block; background: #0c111c; max-width: 94vw; height: auto; }
+    .hint { margin-top: 10px; font-size: 12px; color: #64748b; }
+  </style>
+</head>
+<body>
+  <div class="bar">
+    <div style="display:flex;gap:8px;">
+      <div class="pill">P1 <strong id="p1">0</strong></div>
+      <div class="pill">CPU/P2 <strong id="p2">0</strong></div>
+      <div class="pill">Best Streak <strong id="best">0</strong></div>
+    </div>
+    <div style="display:flex;gap:6px;">
+      <select id="mode">
+        <option value="ai-easy">1P vs Chill AI</option>
+        <option value="ai-hard" selected>1P vs Pro AI</option>
+        <option value="2p">2P Local</option>
+      </select>
+      <button id="reset-btn">Reset</button>
+    </div>
+  </div>
+  <div class="stage"><canvas id="c" width="640" height="400"></canvas></div>
+  <div class="hint">P1: W / S · P2 (2P Mode): ↑ / ↓ · Space to Pause</div>
+
+  <script>
+    const KEY = 'bean_game_pong_v1';
+    const canvas = document.getElementById('c');
+    const ctx = canvas.getContext('2d');
+    const p1El = document.getElementById('p1');
+    const p2El = document.getElementById('p2');
+    const bestEl = document.getElementById('best');
+    const modeSel = document.getElementById('mode');
+
+    let best = 0;
+    try { best = JSON.parse(localStorage.getItem(KEY) || '{}').best || 0; } catch {}
+    bestEl.textContent = best;
+
+    const keys = {};
+    let p1 = { y: 160, score: 0, streak: 0 };
+    let p2 = { y: 160, score: 0 };
+    let ball = { x: 320, y: 200, vx: 5, vy: 3, r: 8 };
+    let paused = false;
+
+    function resetBall(dir = 1) {
+      ball.x = 320; ball.y = 200;
+      ball.vx = 5.2 * dir;
+      ball.vy = (Math.random() * 4 - 2) || 2.5;
+    }
+
+    function resetMatch() {
+      p1 = { y: 160, score: 0, streak: 0 };
+      p2 = { y: 160, score: 0 };
+      p1El.textContent = '0'; p2El.textContent = '0';
+      resetBall(Math.random() > 0.5 ? 1 : -1);
+    }
+
+    function update() {
+      if (paused) return;
+      if (keys['w']) p1.y = Math.max(0, p1.y - 6);
+      if (keys['s']) p1.y = Math.min(320, p1.y + 6);
+
+      if (modeSel.value === '2p') {
+        if (keys['arrowup']) p2.y = Math.max(0, p2.y - 6);
+        if (keys['arrowdown']) p2.y = Math.min(320, p2.y + 6);
+      } else {
+        const aiSpeed = modeSel.value === 'ai-hard' ? 4.8 : 3.2;
+        const center = p2.y + 40;
+        if (ball.y < center - 8) p2.y = Math.max(0, p2.y - aiSpeed);
+        if (ball.y > center + 8) p2.y = Math.min(320, p2.y + aiSpeed);
+      }
+
+      ball.x += ball.vx;
+      ball.y += ball.vy;
+
+      if (ball.y - ball.r < 0 || ball.y + ball.r > 400) ball.vy *= -1;
+
+      if (ball.x - ball.r < 24 && ball.y > p1.y && ball.y < p1.y + 80 && ball.vx < 0) {
+        ball.vx = Math.min(11, -ball.vx * 1.06);
+        ball.vy = ((ball.y - (p1.y + 40)) / 40) * 6;
+      }
+      if (ball.x + ball.r > 616 && ball.y > p2.y && ball.y < p2.y + 80 && ball.vx > 0) {
+        ball.vx = Math.max(-11, -ball.vx * 1.06);
+        ball.vy = ((ball.y - (p2.y + 40)) / 40) * 6;
+      }
+
+      if (ball.x < 0) {
+        p2.score++; p1.streak = 0; p2El.textContent = p2.score; resetBall(1);
+      } else if (ball.x > 640) {
+        p1.score++; p1.streak++; p1El.textContent = p1.score;
+        if (p1.streak > best) {
+          best = p1.streak; bestEl.textContent = best;
+          try { localStorage.setItem(KEY, JSON.stringify({ best })); } catch {}
+        }
+        resetBall(-1);
+      }
+    }
+
+    function draw() {
+      ctx.fillStyle = '#0c111c';
+      ctx.fillRect(0, 0, 640, 400);
+      ctx.setLineDash([8, 8]);
+      ctx.strokeStyle = 'rgba(255,255,255,0.12)';
+      ctx.beginPath(); ctx.moveTo(320, 0); ctx.lineTo(320, 400); ctx.stroke();
+      ctx.setLineDash([]);
+
+      ctx.fillStyle = '#10b981';
+      ctx.fillRect(12, p1.y, 12, 80);
+      ctx.fillStyle = '#06b6d4';
+      ctx.fillRect(616, p2.y, 12, 80);
+
+      ctx.fillStyle = '#f8fafc';
+      ctx.beginPath(); ctx.arc(ball.x, ball.y, ball.r, 0, Math.PI * 2); ctx.fill();
+
+      if (paused) {
+        ctx.fillStyle = 'rgba(9,11,16,0.7)';
+        ctx.fillRect(0, 0, 640, 400);
+        ctx.fillStyle = '#10b981'; ctx.font = 'bold 28px system-ui'; ctx.textAlign = 'center';
+        ctx.fillText('PAUSED', 320, 205);
+      }
+    }
+
+    function loop() { update(); draw(); requestAnimationFrame(loop); }
+    window.addEventListener('keydown', (e) => {
+      const k = e.key.toLowerCase();
+      if (['arrowup','arrowdown',' '].includes(k)) e.preventDefault();
+      if (k === ' ') paused = !paused;
+      keys[k] = true;
+    });
+    window.addEventListener('keyup', (e) => { keys[e.key.toLowerCase()] = false; });
+    document.getElementById('reset-btn').addEventListener('click', resetMatch);
+    resetMatch();
+    loop();
+  </script>
+</body>
+</html>

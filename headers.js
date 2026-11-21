@@ -100,6 +100,20 @@ function applyProxyResponseHeaders(res, upstreamHeaders, isRewritten) {
     res.setHeader('Content-Encoding', upstreamHeaders['content-encoding']);
   }
 
+  // Rewrite HTTP Refresh header through the proxy if present
+  if (upstreamHeaders['refresh']) {
+    const rewrittenRefresh = String(upstreamHeaders['refresh']).replace(
+      /(url\s*=\s*['"]?)([^'"\s;]+)(['"]?)/i,
+      (_, p1, u, p3) =>
+        `${p1}/proxy/${Buffer.from(u, 'utf8')
+          .toString('base64')
+          .replace(/\+/g, '-')
+          .replace(/\//g, '_')
+          .replace(/=+$/g, '')}${p3}`
+    );
+    res.setHeader('Refresh', rewrittenRefresh);
+  }
+
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', '*');

@@ -1,7 +1,7 @@
 /**
  * Bean Proxy Client-Side Runtime Hook
  * Served at /__proxy_hook.js and injected into proxied HTML documents
- * to intercept dynamic fetch, XHR, WebSocket, DOM attributes, and history APIs.
+ * to intercept dynamic fetch, XHR, WebSocket, DOM attributes, clicks, forms, and popups.
  */
 (function () {
   if (window.__BEAN_PROXY_HOOKED__) return;
@@ -23,6 +23,24 @@
     return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '');
   }
 
+  function unwrapSearchRedirect(resolvedHref) {
+    try {
+      const u = new URL(resolvedHref);
+      const host = u.hostname.toLowerCase();
+      if (host.endsWith('duckduckgo.com') && u.pathname.startsWith('/l/')) {
+        const uddg = u.searchParams.get('uddg');
+        if (uddg && /^https?:\/\//i.test(uddg)) return uddg;
+      }
+      if (host.includes('google.') && u.pathname === '/url') {
+        const q = u.searchParams.get('q') || u.searchParams.get('url');
+        if (q && /^https?:\/\//i.test(q)) return q;
+      }
+    } catch {
+      // ignore
+    }
+    return resolvedHref;
+  }
+
   function wrapUrl(rawUrl) {
     if (!rawUrl || typeof rawUrl !== 'string') return rawUrl;
     const trimmed = rawUrl.trim();
@@ -31,7 +49,7 @@
       return rawUrl;
     }
     try {
-      const resolved = new URL(trimmed, TARGET_URL).href;
+      const resolved = unwrapSearchRedirect(new URL(trimmed, TARGET_URL).href);
       if (!/^https?:\/\//i.test(resolved)) return rawUrl;
       return `${PROXY_ORIGIN}${PROXY_PREFIX}${encodeBase64Url(resolved)}`;
     } catch {
@@ -51,7 +69,6 @@
     }
   }
 
-  // 1. Intercept window.fetch
   const origFetch = window.fetch;
   window.fetch = function (input, init) {
     if (typeof input === 'string') {
@@ -62,13 +79,11 @@
     return origFetch.call(this, input, init);
   };
 
-  // 2. Intercept XMLHttpRequest.prototype.open
   const origXhrOpen = XMLHttpRequest.prototype.open;
   XMLHttpRequest.prototype.open = function (method, url, ...rest) {
     return origXhrOpen.call(this, method, wrapUrl(url), ...rest);
   };
 
-  // 3. Intercept window.WebSocket
   const OrigWebSocket = window.WebSocket;
   window.WebSocket = function (url, protocols) {
     const proxied = wrapWsUrl(url);
@@ -82,7 +97,6 @@
   window.WebSocket.CLOSING = OrigWebSocket.CLOSING;
   window.WebSocket.CLOSED = OrigWebSocket.CLOSED;
 
-  // 4. Intercept navigator.sendBeacon
   if (navigator.sendBeacon) {
     const origBeacon = navigator.sendBeacon.bind(navigator);
     navigator.sendBeacon = function (url, data) {
@@ -90,11 +104,20 @@
     };
   }
 
-  // 5. Intercept window.open, location.assign/replace, clicks, and form submits
-  const origOpen = window.open;
-  window.open = function (url, target, features) {
-    const safeTarget = target === '_top' || target === '_parent' ? '_self' : target;
-    return origOpen.call(this, url ? wrapUrl(url) : url, safeTarget, features);
+  // Open popups inside a new Bean Proxy tab instead of leaving the portal
+  window.open = function (url) {
+    if (!url) return null;
+    try {
+      const resolved = unwrapSearchRedirect(new URL(String(url), TARGET_URL).href);
+      if (window.parent && window.parent !== window) {
+        window.parent.postMessage({ type: 'BEAN_PROXY_NEW_TAB', url: resolved }, '*');
+        return window;
+      }
+      window.location.href = wrapUrl(resolved);
+    } catch {
+      // ignore
+    }
+    return null;
   };
 
   try {
@@ -107,31 +130,33 @@
       return origReplace.call(this, wrapUrl(String(url)));
     };
   } catch {
-    // Ignore if Location prototype is locked
+    // ignore
   }
 
+  // Capture ALL link clicks so DuckDuckGo/search results stay inside the proxy iframe
   document.addEventListener(
     'click',
     function (e) {
       const link = e.target && e.target.closest ? e.target.closest('a[href]') : null;
       if (!link) return;
-      const t = (link.getAttribute('target') || '').toLowerCase();
-      if (t === '_top' || t === '_parent') link.setAttribute('target', '_self');
+      link.setAttribute('target', '_self');
       const rawHref = link.getAttribute('href');
-      if (rawHref && !SKIP_RE.test(rawHref) && !rawHref.startsWith(PROXY_PREFIX)) {
-        link.setAttribute('href', wrapUrl(rawHref));
+      if (!rawHref || SKIP_RE.test(rawHref)) return;
+      if (!rawHref.startsWith(PROXY_PREFIX) && !rawHref.startsWith(PROXY_ORIGIN + PROXY_PREFIX)) {
+        e.preventDefault();
+        window.location.href = wrapUrl(rawHref);
       }
     },
     true
   );
 
+  // Capture ALL form submits
   document.addEventListener(
     'submit',
     function (e) {
       const form = e.target;
       if (!form || !form.getAttribute) return;
-      const t = (form.getAttribute('target') || '').toLowerCase();
-      if (t === '_top' || t === '_parent') form.setAttribute('target', '_self');
+      form.setAttribute('target', '_self');
       const rawAction = form.getAttribute('action') || TARGET_URL;
       if (rawAction && !SKIP_RE.test(rawAction) && !rawAction.startsWith(PROXY_PREFIX)) {
         form.setAttribute('action', wrapUrl(rawAction));
@@ -140,17 +165,17 @@
     true
   );
 
-  // 6. Intercept dynamic Element.prototype.setAttribute for src/href/action
   const origSetAttribute = Element.prototype.setAttribute;
   Element.prototype.setAttribute = function (name, value) {
     const lower = String(name).toLowerCase();
     if ((lower === 'src' || lower === 'href' || lower === 'action') && typeof value === 'string') {
       value = wrapUrl(value);
+    } else if (lower === 'target') {
+      value = '_self';
     }
     return origSetAttribute.call(this, name, value);
   };
 
-  // 7. Guard history.pushState / replaceState against cross-origin SecurityError
   const origPushState = history.pushState.bind(history);
   const origReplaceState = history.replaceState.bind(history);
 
@@ -170,7 +195,6 @@
     }
   };
 
-  // 8. Notify parent portal frame of title/URL changes for tab bar sync
   function notifyParent() {
     try {
       if (window.parent && window.parent !== window) {
@@ -184,7 +208,7 @@
         );
       }
     } catch {
-      // Ignore cross-origin postMessage errors
+      // ignore
     }
   }
 

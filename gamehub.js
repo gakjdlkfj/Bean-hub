@@ -5,11 +5,31 @@ export class GameHub {
     this.root = rootEl;
     this.onToast = onToast;
     this.games = [];
-    this.categories = ['All', 'Action', 'Puzzle', 'Arcade', 'Retro'];
+    this.categories = ['All', 'Action', 'Puzzle', 'Arcade', 'Retro', 'Proxied'];
     this.activeCategory = 'All';
     this.searchQuery = '';
     this.activeGame = null;
     this.loaded = false;
+    this.favorites = this.loadFavorites();
+  }
+
+  loadFavorites() {
+    try {
+      return new Set(JSON.parse(localStorage.getItem('bean_game_favs_v1') || '[]'));
+    } catch {
+      return new Set();
+    }
+  }
+
+  toggleFavorite(id) {
+    if (this.favorites.has(id)) this.favorites.delete(id);
+    else this.favorites.add(id);
+    try {
+      localStorage.setItem('bean_game_favs_v1', JSON.stringify(Array.from(this.favorites)));
+    } catch {
+      // ignore
+    }
+    this.render();
   }
 
   async ensureLoaded(force = false) {
@@ -118,18 +138,20 @@ export class GameHub {
     }
 
     const q = this.searchQuery.toLowerCase();
-    const filtered = this.games.filter((g) => {
-      const catMatch =
-        this.activeCategory === 'All' ||
-        g.category === this.activeCategory ||
-        (Array.isArray(g.tags) && g.tags.includes(this.activeCategory));
-      const searchMatch =
-        !q ||
-        g.title.toLowerCase().includes(q) ||
-        (g.description || '').toLowerCase().includes(q) ||
-        (g.category || '').toLowerCase().includes(q);
-      return catMatch && searchMatch;
-    });
+    const filtered = this.games
+      .filter((g) => {
+        const catMatch =
+          this.activeCategory === 'All' ||
+          g.category === this.activeCategory ||
+          (Array.isArray(g.tags) && g.tags.includes(this.activeCategory));
+        const searchMatch =
+          !q ||
+          g.title.toLowerCase().includes(q) ||
+          (g.description || '').toLowerCase().includes(q) ||
+          (g.category || '').toLowerCase().includes(q);
+        return catMatch && searchMatch;
+      })
+      .sort((a, b) => Number(this.favorites.has(b.id)) - Number(this.favorites.has(a.id)));
 
     this.root.innerHTML = `
       <div class="w-full h-full overflow-y-auto px-6 py-6">
@@ -138,7 +160,7 @@ export class GameHub {
             <div>
               <div class="text-xs font-bold uppercase tracking-wider accent-text mb-1">Bean Proxy Arcade</div>
               <h2 class="text-2xl font-extrabold text-white">Bean Game Hub</h2>
-              <p class="text-xs text-slate-400 mt-1">Offline classics + custom URL & HTML games published from the Owner Panel.</p>
+              <p class="text-xs text-slate-400 mt-1">Offline classics + proxied web games + custom Owner uploads. Click ★ to pin favorites.</p>
             </div>
             <div class="flex items-center bg-[#11151f] border border-white/10 rounded-xl px-3 py-2 w-full sm:w-64">
               <span class="text-slate-500 text-xs mr-2">🔍</span>
@@ -173,8 +195,12 @@ export class GameHub {
                                 ${g.icon || '🎮'}
                               </div>
                               <div class="flex flex-col items-end gap-1">
-                                <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-white/5 border border-white/10 text-slate-300">${escapeHtml(g.category || 'Arcade')}</span>
+                                <div class="flex items-center gap-1.5">
+                                  <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-white/5 border border-white/10 text-slate-300">${escapeHtml(g.category || 'Arcade')}</span>
+                                  <button data-fav="${escapeHtml(g.id)}" class="text-sm leading-none ${this.favorites.has(g.id) ? 'text-amber-400' : 'text-slate-600 hover:text-amber-300'}" title="Pin Favorite">★</button>
+                                </div>
                                 ${savedBadge ? `<span class="text-[10px] font-mono accent-text">${escapeHtml(savedBadge)}</span>` : ''}
+                                ${g.isExternalUrl ? '<span class="text-[9px] font-bold text-cyan-400">PROXIED</span>' : ''}
                                 ${g.custom ? '<span class="text-[9px] font-bold text-amber-400">CUSTOM</span>' : ''}
                               </div>
                             </div>
@@ -214,7 +240,13 @@ export class GameHub {
     });
 
     this.root.querySelectorAll('[data-play]').forEach((card) => {
-      card.addEventListener('click', () => {
+      card.addEventListener('click', (e) => {
+        const favBtn = e.target.closest('[data-fav]');
+        if (favBtn) {
+          e.stopPropagation();
+          this.toggleFavorite(favBtn.getAttribute('data-fav'));
+          return;
+        }
         const id = card.getAttribute('data-play');
         const game = this.games.find((x) => x.id === id);
         if (game) this.launchGame(game, Boolean(game.isExternalUrl));

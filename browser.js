@@ -57,10 +57,15 @@ export class TabbedBrowser {
       this.el.omniboxInput.select();
     });
 
-    // Sync tab title & URL when proxied iframe sends postMessage from __proxy_hook.js
+    // Sync tab title/URL and handle in-portal new-tab requests from __proxy_hook.js
     window.addEventListener('message', (event) => {
       const data = event.data;
-      if (!data || data.type !== 'BEAN_PROXY_NAV') return;
+      if (!data) return;
+      if (data.type === 'BEAN_PROXY_NEW_TAB' && data.url) {
+        this.createTab(data.url, { activate: true });
+        return;
+      }
+      if (data.type !== 'BEAN_PROXY_NAV') return;
 
       const tab = this.tabs.find((t) => t.iframe && t.iframe.contentWindow === event.source);
       if (!tab) return;
@@ -201,7 +206,7 @@ export class TabbedBrowser {
       iframe.className = 'proxy-frame hidden';
       iframe.setAttribute(
         'sandbox',
-        'allow-scripts allow-same-origin allow-forms allow-popups allow-modals allow-downloads allow-presentation'
+        'allow-scripts allow-same-origin allow-forms allow-modals allow-downloads allow-presentation'
       );
       iframe.setAttribute(
         'allow',

@@ -4,6 +4,27 @@ const { PROXY_PREFIX, encodeProxyUrl } = require('../config');
 const SKIP_PROTOCOLS = /^(data:|blob:|javascript:|mailto:|tel:|sms:|about:|#)/i;
 
 /**
+ * Unwrap common search-engine redirect wrappers (DuckDuckGo /l/?uddg=..., Google /url?q=...).
+ */
+function unwrapSearchRedirect(resolvedHref) {
+  try {
+    const u = new URL(resolvedHref);
+    const host = u.hostname.toLowerCase();
+    if (host.endsWith('duckduckgo.com') && u.pathname.startsWith('/l/')) {
+      const uddg = u.searchParams.get('uddg');
+      if (uddg && /^https?:\/\//i.test(uddg)) return uddg;
+    }
+    if (host.includes('google.') && u.pathname === '/url') {
+      const q = u.searchParams.get('q') || u.searchParams.get('url');
+      if (q && /^https?:\/\//i.test(q)) return q;
+    }
+  } catch {
+    // keep original
+  }
+  return resolvedHref;
+}
+
+/**
  * Resolve a relative or protocol-relative URL against baseUrl and wrap it in the proxy path.
  */
 function rewriteUrl(rawUrl, baseUrl, proxyPrefix = PROXY_PREFIX) {
@@ -11,11 +32,10 @@ function rewriteUrl(rawUrl, baseUrl, proxyPrefix = PROXY_PREFIX) {
   const trimmed = rawUrl.trim();
   if (!trimmed || SKIP_PROTOCOLS.test(trimmed)) return rawUrl;
 
-  // Avoid double-wrapping already-proxied URLs
   if (trimmed.startsWith(proxyPrefix)) return trimmed;
 
   try {
-    const resolved = new URL(trimmed, baseUrl).href;
+    const resolved = unwrapSearchRedirect(new URL(trimmed, baseUrl).href);
     if (!/^https?:\/\//i.test(resolved)) return rawUrl;
     return `${proxyPrefix}${encodeProxyUrl(resolved)}`;
   } catch {
@@ -23,19 +43,14 @@ function rewriteUrl(rawUrl, baseUrl, proxyPrefix = PROXY_PREFIX) {
   }
 }
 
-/**
- * Rewrite CSS url(...) and @import rules.
- */
 function rewriteCss(cssText, baseUrl, proxyPrefix = PROXY_PREFIX) {
   if (!cssText || typeof cssText !== 'string') return cssText;
 
-  // Rewrite @import "..." or @import '...'
   let out = cssText.replace(/@import\s+(["'])([^"']+)\1/gi, (match, quote, url) => {
     const rewritten = rewriteUrl(url, baseUrl, proxyPrefix);
     return `@import ${quote}${rewritten}${quote}`;
   });
 
-  // Rewrite url(...)
   out = out.replace(/url\(\s*(["']?)([^"')]+)\1\s*\)/gi, (match, quote, url) => {
     const trimmed = url.trim();
     if (!trimmed || SKIP_PROTOCOLS.test(trimmed)) return match;
@@ -46,9 +61,6 @@ function rewriteCss(cssText, baseUrl, proxyPrefix = PROXY_PREFIX) {
   return out;
 }
 
-/**
- * Rewrite srcset attribute containing comma-separated "url descriptor" entries.
- */
 function rewriteSrcset(srcset, baseUrl, proxyPrefix = PROXY_PREFIX) {
   if (!srcset || typeof srcset !== 'string') return srcset;
   return srcset
@@ -62,13 +74,9 @@ function rewriteSrcset(srcset, baseUrl, proxyPrefix = PROXY_PREFIX) {
     .join(', ');
 }
 
-/**
- * Rewrite HTML document attributes, inline styles, and inject the Bean Proxy client runtime hook.
- */
 function rewriteHtml(htmlText, targetUrl, proxyOrigin, proxyPrefix = PROXY_PREFIX) {
   const $ = cheerio.load(htmlText, { decodeEntities: false });
 
-  // Respect <base href="..."> if present
   const baseTagHref = $('base[href]').first().attr('href');
   let effectiveBase = targetUrl;
   if (baseTagHref) {
@@ -109,7 +117,6 @@ function rewriteHtml(htmlText, targetUrl, proxyOrigin, proxyPrefix = PROXY_PREFI
     });
   }
 
-  // Rewrite srcset on img and source
   $('[srcset]').each((_, el) => {
     const val = $(el).attr('srcset');
     if (val) {
@@ -117,7 +124,6 @@ function rewriteHtml(htmlText, targetUrl, proxyOrigin, proxyPrefix = PROXY_PREFI
     }
   });
 
-  // Rewrite inline style="...url(...)..."
   $('[style]').each((_, el) => {
     const styleVal = $(el).attr('style');
     if (styleVal && styleVal.includes('url(')) {
@@ -125,7 +131,6 @@ function rewriteHtml(htmlText, targetUrl, proxyOrigin, proxyPrefix = PROXY_PREFI
     }
   });
 
-  // Rewrite <style> blocks
   $('style').each((_, el) => {
     const css = $(el).html();
     if (css) {
@@ -133,16 +138,12 @@ function rewriteHtml(htmlText, targetUrl, proxyOrigin, proxyPrefix = PROXY_PREFI
     }
   });
 
-  // Strip SRI integrity & CSP nonces so proxied/rewritten scripts and styles load cleanly
   $('[integrity]').removeAttr('integrity');
   $('[nonce]').removeAttr('nonce');
 
-  // Keep links and forms inside the proxy iframe (prevent breaking out via _top/_parent)
+  // Force all links and forms to stay inside the current proxy iframe (blocks _blank, _top, _parent escapes)
   $('a[target], form[target], area[target]').each((_, el) => {
-    const t = ($(el).attr('target') || '').toLowerCase();
-    if (t === '_top' || t === '_parent') {
-      $(el).attr('target', '_self');
-    }
+    $(el).attr('target', '_self');
   });
 
   // Remove meta CSP/X-Frame-Options and rewrite meta refresh redirects through the proxy
@@ -159,7 +160,6 @@ function rewriteHtml(htmlText, targetUrl, proxyOrigin, proxyPrefix = PROXY_PREFI
     }
   });
 
-  // Inject Bean Proxy client runtime hook at the very top of <head>
   const hookTag = `<script src="/__proxy_hook.js" data-target-url="${escapeHtmlAttr(
     targetUrl
   )}" data-proxy-origin="${escapeHtmlAttr(proxyOrigin)}" data-proxy-prefix="${escapeHtmlAttr(
@@ -188,5 +188,6 @@ function escapeHtmlAttr(str) {
 module.exports = {
   rewriteUrl,
   rewriteCss,
-  rewriteHtml
+  rewriteHtml,
+  unwrapSearchRedirect
 };

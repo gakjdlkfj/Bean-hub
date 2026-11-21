@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Cyber Breakout</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: #090b10; color: #f8fafc; font-family: system-ui, -apple-system, sans-serif;
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      min-height: 100vh; padding: 16px; user-select: none;
+    }
+    .bar { width: 100%; max-width: 560px; display: flex; justify-content: space-between; margin-bottom: 10px; gap: 8px; }
+    .pill { background: #11151f; border: 1px solid rgba(255,255,255,0.08); padding: 6px 12px; border-radius: 10px; font-size: 13px; }
+    .pill strong { color: #f59e0b; margin-left: 4px; }
+    button { background: #171c2b; color: #e2e8f0; border: 1px solid rgba(255,255,255,0.12); padding: 6px 12px; border-radius: 8px; font-size: 12px; font-weight: 700; cursor: pointer; }
+    .stage { border-radius: 16px; overflow: hidden; border: 2px solid rgba(245,158,11,0.4); box-shadow: 0 20px 50px rgba(0,0,0,0.6); }
+    canvas { display: block; background: #0c111c; max-width: 94vw; height: auto; cursor: none; }
+    .hint { margin-top: 10px; font-size: 12px; color: #64748b; }
+  </style>
+</head>
+<body>
+  <div class="bar">
+    <div style="display:flex;gap:8px;">
+      <div class="pill">Score <strong id="score">0</strong></div>
+      <div class="pill">Lives <strong id="lives">3</strong></div>
+      <div class="pill">Level <strong id="lvl">1</strong></div>
+      <div class="pill">Best <strong id="best">0</strong></div>
+    </div>
+    <button id="restart">Restart</button>
+  </div>
+  <div class="stage"><canvas id="c" width="560" height="420"></canvas></div>
+  <div class="hint">Move Mouse or ← / → Arrow Keys to bounce the ball</div>
+
+  <script>
+    const KEY = 'bean_game_breakout_v1';
+    const canvas = document.getElementById('c');
+    const ctx = canvas.getContext('2d');
+    const scoreEl = document.getElementById('score');
+    const livesEl = document.getElementById('lives');
+    const lvlEl = document.getElementById('lvl');
+    const bestEl = document.getElementById('best');
+    const ROW_COLORS = ['#f43f5e', '#f97316', '#f59e0b', '#10b981', '#06b6d4'];
+
+    let best = 0;
+    try { best = JSON.parse(localStorage.getItem(KEY) || '{}').best || 0; } catch {}
+    bestEl.textContent = best;
+
+    let paddle = { x: 230, w: 100 };
+    let ball = { x: 280, y: 360, vx: 4, vy: -4, r: 7 };
+    let bricks = [];
+    let score = 0, lives = 3, level = 1, over = false;
+    const keys = {};
+
+    function buildLevel() {
+      bricks = [];
+      const rows = Math.min(6, 3 + level);
+      for (let r = 0; r < rows; r++) {
+        for (let c = 0; c < 9; c++) {
+          bricks.push({ x: 16 + c * 60, y: 40 + r * 24, w: 52, h: 16, alive: true, color: ROW_COLORS[r % ROW_COLORS.length] });
+        }
+      }
+      ball = { x: 280, y: 350, vx: (3.6 + level * 0.4) * (Math.random() > 0.5 ? 1 : -1), vy: -(3.8 + level * 0.4), r: 7 };
+    }
+
+    function start() {
+      score = 0; lives = 3; level = 1; over = false;
+      syncHud();
+      buildLevel();
+    }
+
+    function syncHud() {
+      scoreEl.textContent = score; livesEl.textContent = lives; lvlEl.textContent = level; bestEl.textContent = best;
+    }
+
+    function update() {
+      if (over) return;
+      if (keys['arrowleft'] || keys['a']) paddle.x = Math.max(0, paddle.x - 7);
+      if (keys['arrowright'] || keys['d']) paddle.x = Math.min(560 - paddle.w, paddle.x + 7);
+
+      ball.x += ball.vx; ball.y += ball.vy;
+      if (ball.x - ball.r < 0 || ball.x + ball.r > 560) ball.vx *= -1;
+      if (ball.y - ball.r < 0) ball.vy *= -1;
+
+      if (ball.y + ball.r >= 384 && ball.y + ball.r <= 398 && ball.x >= paddle.x && ball.x <= paddle.x + paddle.w && ball.vy > 0) {
+        const hit = (ball.x - (paddle.x + paddle.w / 2)) / (paddle.w / 2);
+        ball.vx = hit * 5.8;
+        ball.vy = -Math.abs(ball.vy);
+      }
+
+      for (const b of bricks) {
+        if (!b.alive) continue;
+        if (ball.x + ball.r > b.x && ball.x - ball.r < b.x + b.w && ball.y + ball.r > b.y && ball.y - ball.r < b.y + b.h) {
+          b.alive = false;
+          ball.vy *= -1;
+          score += 15;
+          if (score > best) {
+            best = score;
+            try { localStorage.setItem(KEY, JSON.stringify({ best })); } catch {}
+          }
+          syncHud();
+          break;
+        }
+      }
+
+      if (bricks.every((b) => !b.alive)) {
+        level++; syncHud(); buildLevel();
+      }
+
+      if (ball.y > 430) {
+        lives--; syncHud();
+        if (lives <= 0) over = true;
+        else ball = { x: 280, y: 350, vx: 4, vy: -4, r: 7 };
+      }
+    }
+
+    function draw() {
+      ctx.fillStyle = '#0c111c';
+      ctx.fillRect(0, 0, 560, 420);
+      for (const b of bricks) {
+        if (!b.alive) continue;
+        ctx.fillStyle = b.color;
+        ctx.beginPath(); ctx.roundRect(b.x, b.y, b.w, b.h, 4); ctx.fill();
+      }
+      ctx.fillStyle = '#f59e0b';
+      ctx.beginPath(); ctx.roundRect(paddle.x, 386, paddle.w, 12, 6); ctx.fill();
+      ctx.fillStyle = '#ffffff';
+      ctx.beginPath(); ctx.arc(ball.x, ball.y, ball.r, 0, Math.PI * 2); ctx.fill();
+
+      if (over) {
+        ctx.fillStyle = 'rgba(9,11,16,0.78)';
+        ctx.fillRect(0, 0, 560, 420);
+        ctx.fillStyle = '#f59e0b'; ctx.font = 'bold 28px system-ui'; ctx.textAlign = 'center';
+        ctx.fillText('Game Over', 280, 195);
+        ctx.fillStyle = '#e2e8f0'; ctx.font = '15px system-ui';
+        ctx.fillText(`Score: ${score} · Click Restart to Play Again`, 280, 228);
+      }
+    }
+
+    function loop() { update(); draw(); requestAnimationFrame(loop); }
+    canvas.addEventListener('mousemove', (e) => {
+      const rect = canvas.getBoundingClientRect();
+      const mx = ((e.clientX - rect.left) / rect.width) * 560;
+      paddle.x = Math.max(0, Math.min(560 - paddle.w, mx - paddle.w / 2));
+    });
+    window.addEventListener('keydown', (e) => { keys[e.key.toLowerCase()] = true; });
+    window.addEventListener('keyup', (e) => { keys[e.key.toLowerCase()] = false; });
+    document.getElementById('restart').addEventListener('click', start);
+    start();
+    loop();
+  </script>
+</body>
+</html>
