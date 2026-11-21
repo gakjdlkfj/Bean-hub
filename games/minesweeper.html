@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Cyber Minesweeper</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: #090b10; color: #f8fafc; font-family: system-ui, -apple-system, sans-serif;
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      min-height: 100vh; padding: 16px; user-select: none;
+    }
+    .bar {
+      display: flex; flex-wrap: wrap; gap: 8px; align-items: center; justify-content: center;
+      margin-bottom: 12px;
+    }
+    .pill {
+      background: #11151f; border: 1px solid rgba(255,255,255,0.08);
+      padding: 6px 12px; border-radius: 10px; font-size: 13px;
+    }
+    .pill strong { color: #06b6d4; margin-left: 4px; }
+    button, select {
+      background: #171c2b; color: #e2e8f0; border: 1px solid rgba(255,255,255,0.12);
+      padding: 7px 12px; border-radius: 9px; font-size: 12px; font-weight: 700; cursor: pointer;
+    }
+    button:hover, button.active { border-color: #06b6d4; color: #06b6d4; }
+    .board {
+      display: grid; gap: 3px; background: #11151f; padding: 8px;
+      border-radius: 14px; border: 1px solid rgba(6,182,212,0.3);
+      box-shadow: 0 20px 50px rgba(0,0,0,0.6); max-width: 95vw; overflow: auto;
+    }
+    .cell {
+      width: 30px; height: 30px; border-radius: 6px; border: none;
+      display: flex; align-items: center; justify-content: center;
+      font-weight: 800; font-size: 14px; cursor: pointer;
+      background: #1e2538; color: #e2e8f0; transition: background 0.1s;
+    }
+    .cell:hover:not(.open) { background: #29334d; }
+    .cell.open { background: #0d121d; cursor: default; }
+    .cell.mine { background: #be123c; color: #fff; }
+    .status { margin-top: 12px; font-size: 14px; font-weight: 700; min-height: 20px; color: #06b6d4; }
+    .hint { margin-top: 6px; font-size: 12px; color: #64748b; }
+  </style>
+</head>
+<body>
+  <div class="bar">
+    <select id="diff">
+      <option value="easy">Easy (9×9 · 10)</option>
+      <option value="med" selected>Medium (12×12 · 22)</option>
+      <option value="hard">Hard (16×12 · 38)</option>
+    </select>
+    <div class="pill">Mines <strong id="mines-left">22</strong></div>
+    <div class="pill">Time <strong id="timer">0s</strong></div>
+    <div class="pill">Best <strong id="best">—</strong></div>
+    <button id="flag-mode">🚩 Flag Mode: Off</button>
+    <button id="reset-btn">New Board</button>
+  </div>
+
+  <div id="board" class="board"></div>
+  <div id="status" class="status"></div>
+  <div class="hint">Left Click to Reveal · Right Click (or Flag Mode) to Flag · First click is always safe</div>
+
+  <script>
+    const STORAGE_KEY = 'bean_game_minesweeper_v1';
+    const DIFFS = {
+      easy: { w: 9, h: 9, mines: 10 },
+      med: { w: 12, h: 12, mines: 22 },
+      hard: { w: 16, h: 12, mines: 38 }
+    };
+    const NUM_COLORS = ['', '#38bdf8', '#22c55e', '#f43f5e', '#a855f7', '#f59e0b', '#06b6d4', '#e2e8f0', '#94a3b8'];
+
+    let bestTimes = {};
+    try { bestTimes = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}'); } catch {}
+
+    let diffKey = 'med';
+    let w = 12, h = 12, mineTotal = 22;
+    let cells = [];
+    let firstClick = true;
+    let ended = false;
+    let flagMode = false;
+    let seconds = 0;
+    let timerId = null;
+
+    const boardEl = document.getElementById('board');
+    const minesEl = document.getElementById('mines-left');
+    const timerEl = document.getElementById('timer');
+    const bestEl = document.getElementById('best');
+    const statusEl = document.getElementById('status');
+    const flagBtn = document.getElementById('flag-mode');
+
+    function saveBest() {
+      try { localStorage.setItem(STORAGE_KEY, JSON.stringify(bestTimes)); } catch {}
+    }
+
+    function neighbors(idx) {
+      const r = Math.floor(idx / w), c = idx % w;
+      const out = [];
+      for (let dr = -1; dr <= 1; dr++) {
+        for (let dc = -1; dc <= 1; dc++) {
+          if (dr === 0 && dc === 0) continue;
+          const nr = r + dr, nc = c + dc;
+          if (nr >= 0 && nr < h && nc >= 0 && nc < w) out.push(nr * w + nc);
+        }
+      }
+      return out;
+    }
+
+    function placeMines(safeIdx) {
+      const safeSet = new Set([safeIdx, ...neighbors(safeIdx)]);
+      let placed = 0;
+      while (placed < mineTotal) {
+        const idx = Math.floor(Math.random() * w * h);
+        if (!safeSet.has(idx) && !cells[idx].mine) {
+          cells[idx].mine = true;
+          placed++;
+        }
+      }
+      for (let i = 0; i < w * h; i++) {
+        cells[i].adj = neighbors(i).filter((n) => cells[n].mine).length;
+      }
+    }
+
+    function init() {
+      clearInterval(timerId);
+      timerId = null;
+      const cfg = DIFFS[diffKey];
+      w = cfg.w; h = cfg.h; mineTotal = cfg.mines;
+      cells = Array.from({ length: w * h }, () => ({ mine: false, open: false, flag: false, adj: 0 }));
+      firstClick = true;
+      ended = false;
+      seconds = 0;
+      timerEl.textContent = '0s';
+      minesEl.textContent = mineTotal;
+      bestEl.textContent = bestTimes[diffKey] ? `${bestTimes[diffKey]}s` : '—';
+      statusEl.textContent = '';
+      boardEl.style.gridTemplateColumns = `repeat(${w}, 30px)`;
+      render();
+    }
+
+    function startTimer() {
+      if (timerId) return;
+      timerId = setInterval(() => {
+        seconds++;
+        timerEl.textContent = `${seconds}s`;
+      }, 1000);
+    }
+
+    function reveal(idx) {
+      if (ended || cells[idx].open || cells[idx].flag) return;
+      if (firstClick) {
+        firstClick = false;
+        placeMines(idx);
+        startTimer();
+      }
+      const cell = cells[idx];
+      cell.open = true;
+
+      if (cell.mine) {
+        ended = true;
+        clearInterval(timerId);
+        cells.forEach((c) => { if (c.mine) c.open = true; });
+        statusEl.textContent = '💥 Boom! You hit a mine.';
+        statusEl.style.color = '#f43f5e';
+        render();
+        return;
+      }
+
+      if (cell.adj === 0) {
+        const queue = [idx];
+        while (queue.length) {
+          const cur = queue.shift();
+          for (const n of neighbors(cur)) {
+            if (!cells[n].open && !cells[n].flag && !cells[n].mine) {
+              cells[n].open = true;
+              if (cells[n].adj === 0) queue.push(n);
+            }
+          }
+        }
+      }
+
+      checkWin();
+      render();
+    }
+
+    function toggleFlag(idx) {
+      if (ended || cells[idx].open) return;
+      cells[idx].flag = !cells[idx].flag;
+      const flagged = cells.filter((c) => c.flag).length;
+      minesEl.textContent = Math.max(0, mineTotal - flagged);
+      render();
+    }
+
+    function checkWin() {
+      const safeOpen = cells.filter((c) => !c.mine && c.open).length;
+      if (safeOpen === w * h - mineTotal) {
+        ended = true;
+        clearInterval(timerId);
+        if (!bestTimes[diffKey] || seconds < bestTimes[diffKey]) {
+          bestTimes[diffKey] = seconds;
+          saveBest();
+          bestEl.textContent = `${seconds}s`;
+        }
+        statusEl.textContent = `🏆 Board Cleared in ${seconds}s!`;
+        statusEl.style.color = '#10b981';
+      }
+    }
+
+    function render() {
+      boardEl.innerHTML = '';
+      cells.forEach((cell, i) => {
+        const btn = document.createElement('button');
+        btn.className = 'cell' + (cell.open ? ' open' : '') + (cell.open && cell.mine ? ' mine' : '');
+        if (cell.open) {
+          if (cell.mine) btn.textContent = '💣';
+          else if (cell.adj > 0) {
+            btn.textContent = cell.adj;
+            btn.style.color = NUM_COLORS[cell.adj];
+          }
+        } else if (cell.flag) {
+          btn.textContent = '🚩';
+        }
+
+        btn.addEventListener('click', () => (flagMode ? toggleFlag(i) : reveal(i)));
+        btn.addEventListener('contextmenu', (e) => {
+          e.preventDefault();
+          toggleFlag(i);
+        });
+        boardEl.appendChild(btn);
+      });
+    }
+
+    document.getElementById('diff').addEventListener('change', (e) => {
+      diffKey = e.target.value;
+      init();
+    });
+    document.getElementById('reset-btn').addEventListener('click', init);
+    flagBtn.addEventListener('click', () => {
+      flagMode = !flagMode;
+      flagBtn.textContent = `🚩 Flag Mode: ${flagMode ? 'On' : 'Off'}`;
+      flagBtn.classList.toggle('active', flagMode);
+    });
+
+    init();
+  </script>
+</body>
+</html>

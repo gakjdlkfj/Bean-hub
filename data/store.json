@@ -1,0 +1,169 @@
+{
+  "users": [
+    {
+      "id": "usr-owner-1bb9115dc5b9",
+      "username": "Gman820288",
+      "passwordHash": "b655cb8bf876df5668332f67fcafd386:0e4ff3b2620b75844175092c807cc5f804408d46b6728ad6b09e394ac09c5033f6f02257df683798714cda0384e319838191ffa7944633760b5a1f7de664bd4e",
+      "role": "owner",
+      "muted": false,
+      "banned": false,
+      "createdAt": "2026-11-21T04:02:26.545Z"
+    },
+    {
+      "id": "usr-31e5bc087bfeb5d8",
+      "username": "bbb",
+      "passwordHash": "97bf21c192cea698f68d299f5fbb419f:81c7784a27d55edef917d316d9645ae648caa1872c38e2d878559a216c86fdfa5d79296d94a95dfa6c62fbf91a9bb5c9649635031ff2e801ee5a601454f89922",
+      "role": "user",
+      "muted": false,
+      "banned": false,
+      "createdAt": "2026-11-21T04:18:23.486Z"
+    },
+    {
+      "id": "usr-9a039ac24dc2ae79",
+      "username": "gman82088",
+      "passwordHash": "e19893da83e9ead81e26a77f640bc21a:48f0e998e3ea7a3fe646b05478a706e2e863de3c32449dd9be6cf57377ea8a0c4e0356fdc3ae22c76dbf3fd1f88ce260f542d15a1ec0cb3dfab301dd33c7685f",
+      "role": "user",
+      "muted": false,
+      "banned": false,
+      "createdAt": "2026-11-21T04:18:43.201Z"
+    }
+  ],
+  "channels": [
+    {
+      "id": "general",
+      "name": "general",
+      "icon": "💬",
+      "topic": "Main Bean Lounge — hang out, chat, and hop in voice!",
+      "createdBy": "Gman820288",
+      "createdAt": "2026-11-21T04:43:49.049Z"
+    },
+    {
+      "id": "gaming",
+      "name": "gaming",
+      "icon": "🎮",
+      "topic": "High scores, speedruns, and screen-share sessions",
+      "createdBy": "Gman820288",
+      "createdAt": "2026-11-21T04:43:49.050Z"
+    },
+    {
+      "id": "bean",
+      "name": "bean",
+      "icon": "💬",
+      "topic": "",
+      "createdBy": "Gman820288",
+      "createdAt": "2026-11-21T04:47:01.176Z"
+    }
+  ],
+  "messages": [
+    {
+      "id": "msg-mwpwdltg-b4c89a",
+      "userId": "usr-owner-1bb9115dc5b9",
+      "username": "Gman820288",
+      "role": "owner",
+      "text": "wsp nigga",
+      "timestamp": "2026-11-21T04:18:01.788Z",
+      "channelId": "general"
+    },
+    {
+      "id": "msg-mwpwe7aq-a4788a",
+      "userId": "usr-31e5bc087bfeb5d8",
+      "username": "bbb",
+      "role": "user",
+      "text": "Hi nig",
+      "timestamp": "2026-11-21T04:18:29.619Z",
+      "channelId": "general"
+    },
+    {
+      "id": "msg-mwpxf4vc-d29af7",
+      "channelId": "bean",
+      "userId": "usr-owner-1bb9115dc5b9",
+      "username": "Gman820288",
+      "role": "owner",
+      "text": "😂",
+      "replyTo": null,
+      "timestamp": "2026-11-21T04:47:12.744Z"
+    }
+  ],
+  "auditLogs": [
+    {
+      "id": "aud-mwpzotnh-b6de",
+      "actor": "Gman820288",
+      "action": "UPDATE_OWNER_SETTINGS",
+      "details": "{\"maintenanceMode\":true,\"maintenanceMessage\":\"Bean Proxy is currently undergoing quick maintenance. Check back soon!\"}",
+      "timestamp": "2026-11-21T05:50:43.997Z"
+    },
+    {
+      "id": "aud-mwpzohm2-0afd",
+      "actor": "Gman820288",
+      "action": "SET_ROLE",
+      "details": "bbb -> user",
+      "timestamp": "2026-11-21T05:50:28.394Z"
+    },
+    {
+      "id": "aud-mwpznrn6-9cd2",
+      "actor": "bbb",
+      "action": "KICK_VOICE",
+      "details": "bbb",
+      "timestamp": "2026-11-21T05:49:54.738Z"
+    },
+    {
+      "id": "aud-mwpznbxh-74e7",
+      "actor": "bbb",
+      "action": "LIVE_ANNOUNCEMENT",
+      "details": "I am a nigger",
+      "timestamp": "2026-11-21T05:49:34.373Z"
+    },
+    {
+      "id": "aud-mwpzmaap-c649",
+      "actor": "Gman820288",
+      "action": "SET_ROLE",
+      "details": "bbb -> admin",
+      "timestamp": "2026-11-21T05:48:45.606Z"
+    },
+    {
+      "id": "aud-mwpxhoum-bcb2",
+      "actor": "Gman820288",
+      "action": "UPDATE_OWNER_SETTINGS",
+      "details": "{\"startupAnnouncementEnabled\":false,\"startupAnnouncement\":\"Hi niggas!\"}",
+      "timestamp": "2026-11-21T04:49:11.950Z"
+    },
+    {
+      "id": "aud-mwpxgwrm-697f",
+      "actor": "Gman820288",
+      "action": "UPDATE_OWNER_SETTINGS",
+      "details": "{\"maintenanceMode\":true,\"maintenanceMessage\":\"Bean Proxy is currently undergoing quick maintenance. Check back soon!\"}",
+      "timestamp": "2026-11-21T04:48:35.554Z"
+    },
+    {
+      "id": "aud-mwpxgu2b-0df8",
+      "actor": "Gman820288",
+      "action": "UPDATE_OWNER_SETTINGS",
+      "details": "{\"maintenanceMode\":false,\"maintenanceMessage\":\"Bean Proxy is currently undergoing quick maintenance. Check back soon!\"}",
+      "timestamp": "2026-11-21T04:48:32.064Z"
+    },
+    {
+      "id": "aud-mwpxevy3-8040",
+      "actor": "Gman820288",
+      "action": "CREATE_CHANNEL",
+      "details": "#bean",
+      "timestamp": "2026-11-21T04:47:01.181Z"
+    },
+    {
+      "id": "aud-mwpxeckz-87cf",
+      "actor": "Gman820288",
+      "action": "KICK_VOICE",
+      "details": "bbb",
+      "timestamp": "2026-11-21T04:46:36.083Z"
+    }
+  ],
+  "blockedSites": [],
+  "settings": {
+    "registrationsOpen": true,
+    "announcement": "I am a nigger",
+    "startupAnnouncement": "Hi niggas!",
+    "startupAnnouncementEnabled": false,
+    "slowModeSeconds": 0,
+    "maintenanceMode": true,
+    "maintenanceMessage": "Bean Proxy is currently undergoing quick maintenance. Check back soon!"
+  }
+}

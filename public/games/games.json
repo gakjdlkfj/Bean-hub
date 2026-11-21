@@ -1,0 +1,65 @@
+{
+  "categories": ["All", "Action", "Puzzle", "Arcade", "Retro"],
+  "games": [
+    {
+      "id": "snake",
+      "title": "Bean Snake",
+      "category": "Retro",
+      "tags": ["Arcade", "Retro"],
+      "description": "Classic grid snake with turbo speed modes, wrap-around toggle, and local high-score saves.",
+      "icon": "🐍",
+      "accent": "#10b981",
+      "path": "/games/snake.html",
+      "storageKey": "bean_game_snake_v1",
+      "controls": "Arrow Keys or WASD · Space to Pause"
+    },
+    {
+      "id": "tetris",
+      "title": "Neon Tetris",
+      "category": "Puzzle",
+      "tags": ["Puzzle", "Retro", "Arcade"],
+      "description": "Full 7-bag Tetromino stacker with ghost piece, Hold slot, Next preview, and auto-save state.",
+      "icon": "🧱",
+      "accent": "#8b5cf6",
+      "path": "/games/tetris.html",
+      "storageKey": "bean_game_tetris_v1",
+      "controls": "←/→ Move · ↑ Rotate · ↓ Soft Drop · Space Hard Drop · C Hold"
+    },
+    {
+      "id": "2048",
+      "title": "2048 Vault",
+      "category": "Puzzle",
+      "tags": ["Puzzle"],
+      "description": "Slide and merge numbered tiles to reach 2048 with instant Undo and persistent board state.",
+      "icon": "🔢",
+      "accent": "#f59e0b",
+      "path": "/games/2048.html",
+      "storageKey": "bean_game_2048_v1",
+      "controls": "Arrow Keys or WASD · Z to Undo"
+    },
+    {
+      "id": "minesweeper",
+      "title": "Cyber Minesweeper",
+      "category": "Puzzle",
+      "tags": ["Puzzle", "Retro"],
+      "description": "First-click safe minefield with Easy, Medium, and Hard grids, flag mode, and best times.",
+      "icon": "💣",
+      "accent": "#06b6d4",
+      "path": "/games/minesweeper.html",
+      "storageKey": "bean_game_minesweeper_v1",
+      "controls": "Left Click Reveal · Right Click (or Flag Mode) to Flag"
+    },
+    {
+      "id": "flappy",
+      "title": "Flappy Bean",
+      "category": "Action",
+      "tags": ["Action", "Arcade"],
+      "description": "One-button arcade flyer featuring Mr. Bean's emerald glider, medals, and 60fps physics.",
+      "icon": "🫘",
+      "accent": "#22c55e",
+      "path": "/games/flappy.html",
+      "storageKey": "bean_game_flappy_v1",
+      "controls": "Space, ↑, or Click/Tap to Flap"
+    }
+  ]
+}

@@ -1,0 +1,545 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="emerald">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Bean Proxy — Stealth Portal</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="/css/style.css" />
+</head>
+<body class="h-screen w-screen flex flex-col overflow-hidden bg-[#090b10] text-slate-100">
+
+  <!-- Dismissible Top Announcement Banner -->
+  <div id="announcement-banner" class="hidden px-4 py-1.5 bg-amber-500/15 border-b border-amber-500/30 text-amber-200 text-xs flex items-center justify-between gap-2 shrink-0">
+    <div class="flex items-center gap-2 mx-auto">
+      <span>📢</span>
+      <span id="announcement-text" class="font-medium"></span>
+    </div>
+    <button id="announcement-banner-dismiss" class="px-1.5 py-0.5 rounded hover:bg-white/10 text-amber-300 font-bold" title="Dismiss">&times;</button>
+  </div>
+
+  <!-- Top App Header & Tab Strip -->
+  <header class="flex items-center justify-between gap-2 px-3 pt-2 pb-1.5 bg-[#0c0f17] border-b border-white/5 shrink-0">
+    <!-- Brand (with Mr. Bean Avatar) & Mode Switcher -->
+    <div class="flex items-center gap-2 shrink-0">
+      <div class="flex items-center gap-2 pr-2 border-r border-white/10">
+        <img
+          id="brand-bean-avatar"
+          src="/img/bean-1.jpg"
+          alt="Mr. Bean"
+          onerror="this.style.display='none';this.nextElementSibling.style.display='flex';"
+          class="w-7 h-7 rounded-lg object-cover border border-emerald-500/50 shadow-lg"
+        />
+        <div style="display:none" class="w-7 h-7 rounded-lg accent-bg text-slate-950 font-black items-center justify-center text-sm shadow-lg">
+          B
+        </div>
+        <span class="font-bold tracking-tight text-sm hidden sm:inline">Bean<span class="accent-text">Proxy</span></span>
+      </div>
+
+      <div class="flex items-center bg-white/5 p-0.5 rounded-lg border border-white/5">
+        <button id="nav-view-browser" class="px-2.5 py-1 rounded-md text-xs font-semibold accent-bg text-slate-950 transition">
+          Browser
+        </button>
+        <button id="nav-view-games" class="px-2.5 py-1 rounded-md text-xs font-semibold text-slate-300 hover:text-white transition">
+          Games
+        </button>
+        <button id="nav-view-chat" class="px-2.5 py-1 rounded-md text-xs font-semibold text-slate-300 hover:text-white transition flex items-center gap-1">
+          <span>Chat</span>
+          <span id="chat-unread-badge" class="hidden px-1.5 py-0.2 rounded-full bg-rose-500 text-white text-[9px] font-bold">0</span>
+        </button>
+        <button id="nav-view-staff" class="hidden px-2.5 py-1 rounded-md text-xs font-semibold text-slate-300 hover:text-white transition">
+          🛡️ Panel
+        </button>
+      </div>
+    </div>
+
+    <!-- Scrollable Multi-Tab Bar -->
+    <div class="flex items-center gap-1.5 flex-1 min-w-0 overflow-x-auto px-1">
+      <div id="tab-list" class="flex items-center gap-1.5"></div>
+      <button id="new-tab-btn" class="nav-btn w-7 h-7 rounded-lg flex items-center justify-center text-slate-400 text-lg leading-none shrink-0" title="New Tab (Alt+T)">
+        +
+      </button>
+    </div>
+
+    <!-- Right Stealth, Account & DevTools Actions -->
+    <div class="flex items-center gap-1.5 shrink-0">
+      <button id="btn-palette" class="nav-btn hidden lg:flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-white/5 border border-white/10 text-xs text-slate-300" title="Command Palette">
+        <span>Search</span>
+        <kbd class="text-[10px] font-mono text-slate-400 bg-black/40 px-1 rounded">⌘K</kbd>
+      </button>
+
+      <button id="btn-auth" class="nav-btn px-2.5 py-1.5 rounded-lg bg-white/5 border border-white/10 text-xs font-semibold text-slate-200 flex items-center gap-1.5" title="Account">
+        <span id="auth-btn-label">Sign In</span>
+      </button>
+
+      <button id="btn-inspector" class="nav-btn px-2 py-1.5 rounded-lg bg-white/5 border border-white/10 text-xs text-slate-300 flex items-center gap-1" title="Bean DevTools & Wisp Transport">
+        <span>🛠️</span>
+        <span class="hidden xl:inline">DevTools</span>
+      </button>
+
+      <button id="btn-about-blank" class="nav-btn px-2.5 py-1.5 rounded-lg bg-white/5 border border-white/10 text-xs font-medium text-slate-200 flex items-center gap-1.5" title="Launch inside about:blank iframe">
+        <span>👻</span>
+        <span class="hidden md:inline">about:blank</span>
+      </button>
+
+      <button id="btn-panic-now" class="px-2.5 py-1.5 rounded-lg bg-rose-500/15 hover:bg-rose-500/25 border border-rose-500/30 text-rose-300 text-xs font-semibold flex items-center gap-1.5 transition" title="Trigger Panic Escape">
+        <span>🚨</span>
+        <kbd id="panic-key-hint" class="text-[10px] font-mono bg-rose-950/80 px-1 rounded text-rose-200">`</kbd>
+      </button>
+
+      <button id="btn-settings" class="nav-btn p-1.5 rounded-lg text-slate-300 relative" title="Stealth, Wisp & Proxy Settings">
+        <span>⚙️</span>
+        <span id="adblock-status-dot" class="w-2 h-2 rounded-full bg-emerald-400 absolute top-1 right-1"></span>
+      </button>
+    </div>
+  </header>
+
+  <!-- VIEW 1: MULTI-TAB BROWSER -->
+  <div id="view-browser" class="flex-1 flex flex-col min-h-0">
+    <!-- Navigation Toolbar & Omnibox -->
+    <div class="flex items-center gap-2 px-3 py-2 bg-[#11151f] border-b border-white/5 shrink-0">
+      <div class="flex items-center gap-1">
+        <button id="nav-back" class="nav-btn w-8 h-8 rounded-lg flex items-center justify-center text-slate-300" title="Back" disabled>←</button>
+        <button id="nav-forward" class="nav-btn w-8 h-8 rounded-lg flex items-center justify-center text-slate-300" title="Forward" disabled>→</button>
+        <button id="nav-reload" class="nav-btn w-8 h-8 rounded-lg flex items-center justify-center text-slate-300" title="Reload" disabled>↻</button>
+        <button id="nav-home" class="nav-btn w-8 h-8 rounded-lg flex items-center justify-center text-slate-300" title="Speed Dial Home">⌂</button>
+      </div>
+
+      <!-- Omnibox -->
+      <form id="omnibox-form" class="flex-1 flex items-center bg-[#090b10] border border-white/10 rounded-xl px-3 py-1.5 focus-within:border-emerald-500/60 transition">
+        <span class="text-xs text-slate-500 mr-2">🔒</span>
+        <input
+          id="omnibox-input"
+          type="text"
+          autocomplete="off"
+          spellcheck="false"
+          placeholder="Search the web or enter a URL (e.g. wikipedia.org)..."
+          class="flex-1 bg-transparent text-sm text-slate-100 placeholder-slate-500 focus:outline-none select-text"
+        />
+        <button type="button" id="nav-transport-pill" class="hidden sm:inline-flex px-2 py-0.5 mr-1 rounded bg-white/5 border border-white/10 text-[10px] font-mono accent-text hover:bg-white/10" title="Click to change Transport & Wisp Server">
+          NATIVE
+        </button>
+        <button type="button" id="nav-bookmark" class="nav-btn px-1.5 py-0.5 rounded text-slate-400 text-sm" title="Bookmark this page">★</button>
+        <button type="button" id="nav-copy-url" class="nav-btn px-1.5 py-0.5 rounded text-slate-400 text-xs" title="Copy current URL">📋</button>
+      </form>
+
+      <button id="nav-fullscreen" class="nav-btn w-8 h-8 rounded-lg flex items-center justify-center text-slate-300" title="Fullscreen Viewport">⛶</button>
+    </div>
+
+    <!-- Bookmarks Bar -->
+    <div id="bookmarks-bar" class="flex items-center gap-1 px-3 py-1 bg-[#0e121b] border-b border-white/5 overflow-x-auto shrink-0 min-h-[30px]"></div>
+
+    <!-- Loading Progress Bar -->
+    <div class="relative h-0.5 w-full bg-transparent overflow-hidden shrink-0">
+      <div id="loading-bar" class="absolute inset-0 opacity-0 transition-opacity"></div>
+    </div>
+
+    <!-- Main Browser Viewport -->
+    <main id="browser-viewport" class="flex-1 relative bg-[#090b10] overflow-hidden">
+      <!-- Speed Dial / New Tab Page with Mr. Bean Photo Spotlight -->
+      <section id="new-tab-view" class="absolute inset-0 overflow-y-auto px-6 py-8">
+        <div class="w-full max-w-3xl mx-auto flex flex-col items-center">
+          <div id="speed-dial-clock" class="text-5xl sm:text-6xl font-extrabold tracking-tight text-white mb-2">
+            12:00
+          </div>
+          <div class="flex items-center gap-2 mb-5">
+            <span class="px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-white/5 border border-white/10 accent-text">
+              Mr. Bean Edition
+            </span>
+            <span id="bean-quote" class="text-xs text-slate-400">Teddy approves of your stealth browsing.</span>
+          </div>
+
+          <!-- Central Search Box -->
+          <form id="speed-dial-form" class="w-full flex items-center gap-2 glass-panel rounded-2xl p-2 mb-5 shadow-2xl">
+            <span class="pl-3 text-lg">🫘</span>
+            <input
+              id="speed-dial-input"
+              type="text"
+              autocomplete="off"
+              placeholder="Search privately or type any URL..."
+              class="flex-1 bg-transparent text-sm sm:text-base text-white placeholder-slate-400 focus:outline-none py-2 select-text"
+            />
+            <button type="submit" class="accent-bg text-slate-950 font-bold text-xs sm:text-sm px-5 py-2.5 rounded-xl transition">
+              Go
+            </button>
+          </form>
+
+          <!-- Live Proxy Status Strip -->
+          <div class="flex flex-wrap items-center justify-center gap-2.5 mb-6 text-xs text-slate-400">
+            <div class="px-3 py-1.5 rounded-full bg-white/[0.03] border border-white/5 flex items-center gap-2">
+              <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
+              <span>Proxy Online</span>
+            </div>
+            <div class="px-3 py-1.5 rounded-full bg-white/[0.03] border border-white/5">
+              Transport: <strong id="stat-transport" class="accent-text">NATIVE</strong>
+            </div>
+            <div class="px-3 py-1.5 rounded-full bg-white/[0.03] border border-white/5">
+              Ads Blocked: <strong id="stat-blocked-count" class="text-slate-100">0</strong>
+            </div>
+            <div class="px-3 py-1.5 rounded-full bg-white/[0.03] border border-white/5">
+              Filter Rules: <strong id="stat-rules-count" class="text-slate-100">40</strong>
+            </div>
+            <div class="px-3 py-1.5 rounded-full bg-white/[0.03] border border-white/5">
+              Cookies: <strong id="stat-cookie-count" class="text-slate-100">0</strong>
+            </div>
+          </div>
+
+          <!-- Quick Launch Speed Dial Cards -->
+          <div id="speed-dial-grid" class="w-full grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 mb-7"></div>
+
+          <!-- Mr. Bean Photo Spotlight Gallery -->
+          <div class="w-full glass-panel rounded-2xl p-4 flex flex-col sm:flex-row items-center gap-4">
+            <div class="relative shrink-0">
+              <img
+                id="bean-gallery-img"
+                src="/img/bean-1.jpg"
+                alt="Mr. Bean"
+                class="w-36 h-36 sm:w-40 sm:h-40 rounded-xl object-cover border border-white/10 shadow-xl bg-[#0c101a]"
+              />
+            </div>
+            <div class="flex-1 min-w-0 text-center sm:text-left space-y-2.5">
+              <div class="flex items-center justify-center sm:justify-between gap-2">
+                <span class="text-xs font-bold uppercase tracking-wider accent-text">🫘 Mr. Bean Photo Vault</span>
+                <div class="flex items-center gap-1.5">
+                  <button id="bean-photo-prev" class="nav-btn px-2.5 py-1 rounded-lg bg-white/5 border border-white/10 text-xs text-slate-300">← Prev</button>
+                  <button id="bean-photo-next" class="nav-btn px-2.5 py-1 rounded-lg accent-bg text-slate-950 font-bold text-xs">Next Photo →</button>
+                </div>
+              </div>
+              <p id="bean-gallery-caption" class="text-sm text-slate-200 font-medium"></p>
+              <div id="bean-gallery-thumbs" class="flex items-center justify-center sm:justify-start gap-2 pt-1 overflow-x-auto"></div>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <!-- VIEW 2: INTEGRATED GAME HUB -->
+  <div id="view-games" class="hidden flex-1 flex flex-col min-h-0 bg-[#090b10] overflow-hidden">
+    <div id="game-hub-root" class="flex-1 flex flex-col min-h-0 overflow-hidden"></div>
+  </div>
+
+  <!-- VIEW 3: LIVE CHAT, VOICE & SCREEN SHARE -->
+  <div id="view-chat" class="hidden flex-1 flex flex-col min-h-0 bg-[#090b10] overflow-hidden">
+    <div id="chat-root" class="flex-1 flex flex-col min-h-0 overflow-hidden"></div>
+  </div>
+
+  <!-- VIEW 4: ADMIN & OWNER PANEL -->
+  <div id="view-staff" class="hidden flex-1 flex flex-col min-h-0 bg-[#090b10] overflow-hidden">
+    <div id="staff-root" class="flex-1 flex flex-col min-h-0 overflow-hidden"></div>
+  </div>
+
+  <!-- MULTI-TAB BEAN DEVTOOLS DRAWER -->
+  <section id="inspector-drawer" class="hidden h-64 bg-[#0c101a] border-t border-white/10 flex flex-col shrink-0">
+    <div class="flex items-center justify-between px-3 py-1.5 bg-[#111624] border-b border-white/5 gap-2">
+      <div class="flex items-center gap-1 overflow-x-auto">
+        <span class="text-xs font-bold accent-text mr-2 shrink-0">🛠️ DevTools</span>
+        <button data-dt-tab="network" class="px-2.5 py-1 rounded-md text-xs font-semibold accent-bg text-slate-950">Network</button>
+        <button data-dt-tab="console" class="px-2.5 py-1 rounded-md text-xs font-semibold text-slate-400 hover:text-white">Console</button>
+        <button data-dt-tab="elements" class="px-2.5 py-1 rounded-md text-xs font-semibold text-slate-400 hover:text-white">Elements</button>
+        <button data-dt-tab="storage" class="px-2.5 py-1 rounded-md text-xs font-semibold text-slate-400 hover:text-white">Storage</button>
+        <button data-dt-tab="transport" class="px-2.5 py-1 rounded-md text-xs font-semibold text-slate-400 hover:text-white">Wisp / Transport</button>
+      </div>
+      <div class="flex items-center gap-1.5 shrink-0">
+        <button id="inspector-refresh" class="nav-btn px-2 py-1 rounded text-xs text-slate-300">↻</button>
+        <button id="inspector-clear" class="nav-btn px-2 py-1 rounded text-xs text-rose-300">Clear</button>
+        <button id="inspector-close" class="nav-btn px-2 py-1 rounded text-xs text-slate-400">✕</button>
+      </div>
+    </div>
+
+    <!-- DevTools Panes -->
+    <div class="flex-1 overflow-auto min-h-0">
+      <div id="dt-pane-network" class="h-full overflow-auto">
+        <table class="w-full text-left border-collapse">
+          <thead class="sticky top-0 bg-[#0f1420] text-[10px] uppercase tracking-wider text-slate-500 border-b border-white/5">
+            <tr>
+              <th class="py-1.5 px-3">Method</th>
+              <th class="py-1.5 px-3">Status</th>
+              <th class="py-1.5 px-3">Target URL</th>
+              <th class="py-1.5 px-3">Type</th>
+              <th class="py-1.5 px-3 text-right">Latency</th>
+            </tr>
+          </thead>
+          <tbody id="inspector-tbody"></tbody>
+        </table>
+      </div>
+
+      <div id="dt-pane-console" class="hidden h-full flex flex-col">
+        <div id="dt-console-output" class="flex-1 overflow-y-auto px-3 py-2 space-y-0.5"></div>
+        <form id="dt-console-form" class="flex items-center gap-2 px-3 py-1.5 bg-[#090b10] border-t border-white/10">
+          <span class="font-mono text-xs accent-text">&gt;</span>
+          <input id="dt-console-input" type="text" autocomplete="off" placeholder="Evaluate JS in active tab (e.g. document.title)..." class="flex-1 bg-transparent font-mono text-xs text-white focus:outline-none select-text" />
+          <button type="submit" class="px-2.5 py-0.5 rounded accent-bg text-slate-950 font-bold text-[11px]">Run</button>
+        </form>
+      </div>
+
+      <div id="dt-pane-elements" class="hidden h-full overflow-auto">
+        <div id="dt-elements-output"></div>
+      </div>
+
+      <div id="dt-pane-storage" class="hidden h-full overflow-auto">
+        <div id="dt-storage-output"></div>
+      </div>
+
+      <div id="dt-pane-transport" class="hidden h-full overflow-auto">
+        <div id="dt-transport-output"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- DISMISSIBLE ON-SCREEN ANNOUNCEMENT POPUP MODAL (Startup & Live Broadcasts) -->
+  <div id="announcement-modal" class="hidden fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="glass-panel w-full max-w-md rounded-2xl shadow-2xl overflow-hidden border-amber-500/30">
+      <div class="p-5 flex items-start gap-4">
+        <img
+          src="/img/bean-2.jpg"
+          alt="Mr. Bean Announcement"
+          onerror="this.style.display='none'"
+          class="w-16 h-16 rounded-xl object-cover border border-amber-400/40 shrink-0"
+        />
+        <div class="flex-1 min-w-0">
+          <div id="ann-modal-badge" class="text-[10px] font-bold uppercase tracking-wider text-amber-400 mb-1">
+            📢 Bean Proxy Announcement
+          </div>
+          <p id="ann-modal-body" class="text-sm text-slate-100 leading-relaxed whitespace-pre-wrap"></p>
+        </div>
+      </div>
+      <div class="px-5 py-3 bg-white/[0.03] border-t border-white/10 flex justify-end">
+        <button id="ann-modal-dismiss" class="px-5 py-2 rounded-xl accent-bg text-slate-950 font-bold text-xs">
+          Dismiss
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- AUTH / ACCOUNT MODAL -->
+  <div id="auth-modal" class="hidden fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="glass-panel w-full max-w-sm rounded-2xl shadow-2xl overflow-hidden">
+      <div class="flex items-center justify-between px-5 py-4 border-b border-white/10">
+        <h2 class="text-base font-bold text-white">Bean Proxy Account</h2>
+        <button id="auth-close" class="nav-btn w-8 h-8 rounded-lg text-slate-400">✕</button>
+      </div>
+
+      <div id="auth-guest-view" class="p-5 space-y-4">
+        <div class="grid grid-cols-2 bg-white/5 p-1 rounded-xl border border-white/10">
+          <button id="auth-tab-login" type="button" class="py-1.5 rounded-lg text-xs font-bold accent-bg text-slate-950">Sign In</button>
+          <button id="auth-tab-register" type="button" class="py-1.5 rounded-lg text-xs font-bold text-slate-300">Create Account</button>
+        </div>
+
+        <form id="auth-form" class="space-y-3">
+          <div>
+            <label for="auth-username" class="block text-xs text-slate-300 mb-1">Username</label>
+            <input id="auth-username" type="text" required autocomplete="username" placeholder="e.g. BeanMaster" class="w-full bg-[#090b10] border border-white/10 rounded-xl px-3.5 py-2 text-sm text-white select-text accent-ring" />
+          </div>
+          <div>
+            <label for="auth-password" class="block text-xs text-slate-300 mb-1">Password</label>
+            <input id="auth-password" type="password" required autocomplete="current-password" placeholder="••••••••" class="w-full bg-[#090b10] border border-white/10 rounded-xl px-3.5 py-2 text-sm text-white select-text accent-ring" />
+          </div>
+          <div id="auth-error" class="hidden text-xs text-rose-400 bg-rose-500/10 border border-rose-500/20 rounded-lg px-3 py-2"></div>
+          <button id="auth-submit-btn" type="submit" class="w-full py-2.5 rounded-xl accent-bg text-slate-950 font-bold text-sm transition">
+            Sign In
+          </button>
+        </form>
+      </div>
+
+      <div id="auth-profile-view" class="hidden p-5 space-y-4">
+        <div class="flex items-center gap-3 p-3.5 rounded-xl bg-white/[0.03] border border-white/10">
+          <div id="profile-avatar" class="w-11 h-11 rounded-xl accent-bg text-slate-950 font-black flex items-center justify-center text-lg">B</div>
+          <div>
+            <div id="profile-username" class="text-sm font-bold text-white">User</div>
+            <div id="profile-role" class="text-xs text-slate-400 uppercase font-semibold">USER</div>
+          </div>
+        </div>
+        <button id="btn-logout" class="w-full py-2.5 rounded-xl bg-rose-500/15 hover:bg-rose-500/25 border border-rose-500/30 text-rose-300 font-bold text-xs transition">
+          Sign Out
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- STEALTH, WISP & PROXY SETTINGS MODAL -->
+  <div id="settings-modal" class="hidden fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="glass-panel w-full max-w-xl max-h-[88vh] rounded-2xl shadow-2xl flex flex-col overflow-hidden">
+      <div class="flex items-center justify-between px-5 py-4 border-b border-white/10">
+        <div>
+          <h2 class="text-base font-bold text-white">Bean Proxy — Stealth, Wisp & Settings</h2>
+          <p class="text-xs text-slate-400">Changes apply immediately and persist locally.</p>
+        </div>
+        <button id="settings-close" class="nav-btn w-8 h-8 rounded-lg text-slate-400">✕</button>
+      </div>
+
+      <div class="flex-1 overflow-y-auto p-5 space-y-5 text-sm">
+        <!-- Theme & Search -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div>
+            <label class="block text-xs font-semibold text-slate-300 mb-1.5">Accent Theme</label>
+            <div class="flex items-center gap-2.5">
+              <button data-theme-pick="emerald" class="w-7 h-7 rounded-full bg-emerald-500" title="Mr. Bean Emerald"></button>
+              <button data-theme-pick="violet" class="w-7 h-7 rounded-full bg-violet-500" title="Midnight Violet"></button>
+              <button data-theme-pick="amber" class="w-7 h-7 rounded-full bg-amber-500" title="Cyber Amber"></button>
+              <button data-theme-pick="cyan" class="w-7 h-7 rounded-full bg-cyan-500" title="Arctic Cyan"></button>
+            </div>
+          </div>
+          <div>
+            <label for="setting-search-engine" class="block text-xs font-semibold text-slate-300 mb-1.5">Search Engine</label>
+            <select id="setting-search-engine" class="w-full bg-[#090b10] border border-white/10 rounded-lg px-3 py-2 text-xs text-white accent-ring"></select>
+          </div>
+        </div>
+
+        <!-- Wisp Server & Transport Switcher -->
+        <div class="p-4 rounded-xl bg-white/[0.03] border border-white/5 space-y-3">
+          <div class="text-xs font-bold uppercase tracking-wider accent-text">⚡ Wisp Server & Transport</div>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label for="setting-transport" class="block text-xs text-slate-300 mb-1">Transport Engine</label>
+              <select id="setting-transport" class="w-full bg-[#090b10] border border-white/10 rounded-lg px-3 py-2 text-xs text-white accent-ring">
+                <option value="native">Bean Native (HTTP/WS Rewriter)</option>
+                <option value="epoxy">Epoxy (Wisp Encrypted)</option>
+                <option value="libcurl">Libcurl (Wisp Multiplex)</option>
+                <option value="baremux">Bare-Mux Relay</option>
+              </select>
+            </div>
+            <div>
+              <label for="setting-wisp-url" class="block text-xs text-slate-300 mb-1">Wisp Server URL</label>
+              <input id="setting-wisp-url" type="text" placeholder="wss://wisp.mercurywork.shop/" class="w-full bg-[#090b10] border border-white/10 rounded-lg px-3 py-2 text-xs font-mono text-white select-text" />
+            </div>
+          </div>
+        </div>
+
+        <!-- Tab Cloaking -->
+        <div class="p-4 rounded-xl bg-white/[0.03] border border-white/5 space-y-3">
+          <div class="text-xs font-bold uppercase tracking-wider accent-text">🎭 Tab Cloaking</div>
+          <div>
+            <label for="setting-cloak-preset" class="block text-xs text-slate-300 mb-1">Cloak Preset</label>
+            <select id="setting-cloak-preset" class="w-full bg-[#090b10] border border-white/10 rounded-lg px-3 py-2 text-xs text-white accent-ring"></select>
+          </div>
+          <div id="custom-cloak-fields" class="hidden grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label for="setting-custom-title" class="block text-xs text-slate-400 mb-1">Custom Tab Title</label>
+              <input id="setting-custom-title" type="text" placeholder="e.g. Study Notes" class="w-full bg-[#090b10] border border-white/10 rounded-lg px-3 py-1.5 text-xs text-white select-text" />
+            </div>
+            <div>
+              <label for="setting-custom-favicon" class="block text-xs text-slate-400 mb-1">Custom Favicon URL</label>
+              <input id="setting-custom-favicon" type="url" placeholder="https://.../favicon.ico" class="w-full bg-[#090b10] border border-white/10 rounded-lg px-3 py-1.5 text-xs text-white select-text" />
+            </div>
+          </div>
+        </div>
+
+        <!-- Panic Key & about:blank -->
+        <div class="p-4 rounded-xl bg-white/[0.03] border border-white/5 space-y-3">
+          <div class="text-xs font-bold uppercase tracking-wider text-rose-400">🚨 Panic Key & Escape</div>
+          <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div>
+              <label class="block text-xs text-slate-300 mb-1">Hotkey</label>
+              <button id="panic-key-record-btn" type="button" class="w-full bg-[#090b10] border border-white/10 hover:border-rose-400/50 rounded-lg px-3 py-2 text-xs font-mono text-rose-300 text-center">
+                `
+              </button>
+            </div>
+            <div class="sm:col-span-2">
+              <label for="setting-panic-url" class="block text-xs text-slate-300 mb-1">Safe Redirect URL</label>
+              <input id="setting-panic-url" type="url" class="w-full bg-[#090b10] border border-white/10 rounded-lg px-3 py-2 text-xs text-white select-text" />
+            </div>
+          </div>
+          <div class="flex items-center justify-between pt-1">
+            <div>
+              <div class="text-xs font-medium text-slate-200">Auto about:blank on Open</div>
+              <div class="text-[11px] text-slate-400">Automatically opens Bean Proxy inside about:blank when you visit the site</div>
+            </div>
+            <input id="setting-auto-blank-toggle" type="checkbox" class="w-4 h-4 accent-emerald-500 cursor-pointer" />
+          </div>
+          <div>
+            <label for="setting-blank-redirect" class="block text-xs text-slate-400 mb-1">Redirect Original Tab After about:blank Launch (optional)</label>
+            <input id="setting-blank-redirect" type="url" placeholder="https://www.google.com" class="w-full bg-[#090b10] border border-white/10 rounded-lg px-3 py-1.5 text-xs text-white select-text" />
+          </div>
+        </div>
+
+        <!-- Privacy: Ad-Blocker, User-Agent, Session Wipe -->
+        <div class="p-4 rounded-xl bg-white/[0.03] border border-white/5 space-y-3">
+          <div class="text-xs font-bold uppercase tracking-wider accent-text">🛡️ Privacy, Ad-Blocker & User-Agent</div>
+
+          <div class="flex items-center justify-between">
+            <div>
+              <div class="text-xs font-medium text-slate-200">Block Ads & Trackers</div>
+              <div class="text-[11px] text-slate-400">Filters known ad networks and telemetry scripts server-side</div>
+            </div>
+            <input id="setting-adblock-toggle" type="checkbox" class="w-4 h-4 accent-emerald-500 cursor-pointer" />
+          </div>
+
+          <form id="adblock-add-form" class="flex gap-2">
+            <input id="adblock-domain-input" type="text" placeholder="Add domain to blocklist (e.g. tracker.example.com)" class="flex-1 bg-[#090b10] border border-white/10 rounded-lg px-3 py-1.5 text-xs text-white select-text" />
+            <button type="submit" class="px-3 py-1.5 rounded-lg bg-white/10 hover:bg-white/15 text-xs font-semibold text-white">Block</button>
+          </form>
+
+          <div>
+            <label for="setting-ua-select" class="block text-xs text-slate-300 mb-1">Spoofed User-Agent</label>
+            <select id="setting-ua-select" class="w-full bg-[#090b10] border border-white/10 rounded-lg px-3 py-2 text-xs text-white accent-ring"></select>
+          </div>
+
+          <div class="flex items-center justify-between pt-1">
+            <div>
+              <div class="text-xs font-medium text-slate-200">Anti-Tab-Close Guard</div>
+              <div class="text-[11px] text-slate-400">Ask for confirmation before closing this portal tab</div>
+            </div>
+            <input id="setting-anticlose-toggle" type="checkbox" class="w-4 h-4 accent-emerald-500 cursor-pointer" />
+          </div>
+
+          <div class="pt-2 border-t border-white/5 flex justify-end">
+            <button id="btn-nuke-session" type="button" class="px-3.5 py-2 rounded-lg bg-rose-500/15 hover:bg-rose-500/25 border border-rose-500/30 text-rose-300 text-xs font-semibold">
+              🧹 Wipe Session Cookies & Logs
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- COMMAND PALETTE (Cmd+K / Ctrl+K) -->
+  <div id="palette-backdrop" class="hidden fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-start justify-center pt-20 p-4">
+    <div class="glass-panel w-full max-w-lg rounded-2xl shadow-2xl overflow-hidden">
+      <div class="flex items-center gap-2 px-4 py-3 border-b border-white/10">
+        <span class="text-slate-400">⌘</span>
+        <input
+          id="palette-input"
+          type="text"
+          autocomplete="off"
+          placeholder="Type a command, cloak preset, or URL..."
+          class="flex-1 bg-transparent text-sm text-white placeholder-slate-500 focus:outline-none select-text"
+        />
+        <kbd class="text-[10px] font-mono text-slate-500 bg-white/5 px-1.5 py-0.5 rounded">ESC</kbd>
+      </div>
+      <div id="palette-list" class="max-h-72 overflow-y-auto p-2 space-y-0.5"></div>
+    </div>
+  </div>
+
+  <!-- FULL-SCREEN MAINTENANCE MODE LOCK SCREEN (Owner & Admins Can Sign In to Bypass) -->
+  <div id="maintenance-overlay" class="hidden fixed inset-0 z-[60] bg-[#090b10] flex items-center justify-center p-6">
+    <div class="glass-panel w-full max-w-md rounded-2xl p-6 text-center space-y-5 border-amber-500/30 shadow-2xl">
+      <img
+        src="/img/bean-1.jpg"
+        alt="Mr. Bean Maintenance"
+        onerror="this.style.display='none'"
+        class="w-20 h-20 rounded-2xl object-cover mx-auto border-2 border-amber-400/50 shadow-lg"
+      />
+      <div>
+        <div class="text-xs font-bold uppercase tracking-wider text-amber-400 mb-1">🛠️ Maintenance Mode Active</div>
+        <h2 class="text-2xl font-extrabold text-white">Bean Proxy is Locked</h2>
+        <p id="maintenance-overlay-msg" class="text-xs text-slate-300 mt-2 leading-relaxed"></p>
+      </div>
+      <form id="maintenance-login-form" class="space-y-2.5 text-left pt-2 border-t border-white/10">
+        <div class="text-[11px] font-semibold text-slate-400 text-center">Owner / Admin Sign In to Access Site</div>
+        <input id="maint-username" type="text" required placeholder="Owner or Admin Username" class="w-full bg-[#090b10] border border-white/10 rounded-xl px-3.5 py-2 text-sm text-white select-text accent-ring" />
+        <input id="maint-password" type="password" required placeholder="Password" class="w-full bg-[#090b10] border border-white/10 rounded-xl px-3.5 py-2 text-sm text-white select-text accent-ring" />
+        <div id="maint-login-error" class="hidden text-xs text-rose-400 bg-rose-500/10 border border-rose-500/20 rounded-lg px-3 py-1.5"></div>
+        <button type="submit" class="w-full py-2.5 rounded-xl bg-amber-400 hover:bg-amber-300 text-slate-950 font-bold text-sm transition">
+          Unlock as Owner / Admin
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Toast Container -->
+  <div id="toast-container" class="fixed bottom-4 right-4 z-[70] flex flex-col gap-2 pointer-events-none"></div>
+
+  <script type="module" src="/js/app.js"></script>
+</body>
+</html>
