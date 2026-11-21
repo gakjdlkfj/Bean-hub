@@ -200,6 +200,10 @@ export class TabbedBrowser {
       const iframe = document.createElement('iframe');
       iframe.className = 'proxy-frame hidden';
       iframe.setAttribute(
+        'sandbox',
+        'allow-scripts allow-same-origin allow-forms allow-popups allow-modals allow-downloads allow-presentation'
+      );
+      iframe.setAttribute(
         'allow',
         'fullscreen; clipboard-read; clipboard-write; autoplay; encrypted-media'
       );

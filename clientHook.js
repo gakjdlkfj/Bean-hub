@@ -90,11 +90,55 @@
     };
   }
 
-  // 5. Intercept window.open so popups stay inside the proxy
+  // 5. Intercept window.open, location.assign/replace, clicks, and form submits
   const origOpen = window.open;
   window.open = function (url, target, features) {
-    return origOpen.call(this, url ? wrapUrl(url) : url, target, features);
+    const safeTarget = target === '_top' || target === '_parent' ? '_self' : target;
+    return origOpen.call(this, url ? wrapUrl(url) : url, safeTarget, features);
   };
+
+  try {
+    const origAssign = Location.prototype.assign;
+    const origReplace = Location.prototype.replace;
+    Location.prototype.assign = function (url) {
+      return origAssign.call(this, wrapUrl(String(url)));
+    };
+    Location.prototype.replace = function (url) {
+      return origReplace.call(this, wrapUrl(String(url)));
+    };
+  } catch {
+    // Ignore if Location prototype is locked
+  }
+
+  document.addEventListener(
+    'click',
+    function (e) {
+      const link = e.target && e.target.closest ? e.target.closest('a[href]') : null;
+      if (!link) return;
+      const t = (link.getAttribute('target') || '').toLowerCase();
+      if (t === '_top' || t === '_parent') link.setAttribute('target', '_self');
+      const rawHref = link.getAttribute('href');
+      if (rawHref && !SKIP_RE.test(rawHref) && !rawHref.startsWith(PROXY_PREFIX)) {
+        link.setAttribute('href', wrapUrl(rawHref));
+      }
+    },
+    true
+  );
+
+  document.addEventListener(
+    'submit',
+    function (e) {
+      const form = e.target;
+      if (!form || !form.getAttribute) return;
+      const t = (form.getAttribute('target') || '').toLowerCase();
+      if (t === '_top' || t === '_parent') form.setAttribute('target', '_self');
+      const rawAction = form.getAttribute('action') || TARGET_URL;
+      if (rawAction && !SKIP_RE.test(rawAction) && !rawAction.startsWith(PROXY_PREFIX)) {
+        form.setAttribute('action', wrapUrl(rawAction));
+      }
+    },
+    true
+  );
 
   // 6. Intercept dynamic Element.prototype.setAttribute for src/href/action
   const origSetAttribute = Element.prototype.setAttribute;
